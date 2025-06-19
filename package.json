@@ -15,6 +15,7 @@
     "start:dev:classroom": "nest start --watch classroom-service",
     "start:dev:chat": "nest start --watch chat-service",
     "start:dev:all": "concurrently \"npm run start:dev:gateway\" \"npm run start:dev:user\" \"npm run start:dev:classroom\" \"npm run start:dev:chat\"",
+    "start:safe": "node start.js",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/apps/tutormatch-microservices/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
