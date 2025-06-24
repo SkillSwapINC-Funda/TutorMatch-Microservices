@@ -2,6 +2,11 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ApiGatewayModule } from './api-gateway.module';
 import { EnvironmentValidationService } from '@app/shared';
+import { config } from 'dotenv';
+import { resolve } from 'path';
+
+// Cargar variables de entorno desde la raíz del monorepo
+config({ path: resolve(__dirname, '../../../.env') });
 
 async function bootstrap() {
   // Validar variables de entorno antes de iniciar la aplicación
