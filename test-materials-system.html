@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Sistema de Materiales de Tutoría</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .section h2 {
+            color: #34495e;
+            margin-top: 0;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button.danger {
+            background-color: #e74c3c;
+        }
+        button.danger:hover {
+            background-color: #c0392b;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            background-color: #f8f9fa;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            border-color: #27ae60;
+            background-color: #d5f4e6;
+            color: #1e8449;
+        }
+        .error {
+            border-color: #e74c3c;
+            background-color: #faddd7;
+            color: #c0392b;
+        }
+        .materials-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .material-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .material-item h4 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+        }
+        .material-meta {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+        }
+        .material-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .material-actions button {
+            font-size: 12px;
+            padding: 6px 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎓 Sistema de Materiales de Tutoría - Test</h1>
+        
+        <!-- Configuración -->
+        <div class="section">
+            <h2>👤 Selección de Usuario</h2>
+            <div class="form-group">
+                <button onclick="selectUser('u202213646@upc.edu.pe', 'Rodrigo Salvador')" id="user1-btn">👤 Soy Rodrigo Salvador</button>
+                <button onclick="selectUser('u202212338@upc.edu.pe', 'Rodrigo Lopez')" id="user2-btn">👤 Soy Rodrigo Lopez</button>
+            </div>
+            <div id="auth-status" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- Configuración de Tutoría -->
+        <div class="section" id="tutoring-config" style="display: none;">
+            <h2>⚙️ Configuración de Tutoría</h2>
+            <div class="form-group">
+                <label for="apiUrl">URL del API:</label>
+                <input type="text" id="apiUrl" value="http://localhost:3002" placeholder="http://localhost:3002">
+            </div>
+            <div class="form-group">
+                <label for="tutoringId">ID de Sesión de Tutoría (UUID):</label>
+                <input type="text" id="tutoringId" placeholder="Ejemplo: 123e4567-e89b-12d3-a456-426614174000">
+            </div>
+            <div class="form-group">
+                <button onclick="createTestTutoring()">🎓 Crear Tutoría de Prueba</button>
+                <button onclick="validateTutoring()">✅ Validar Tutoría</button>
+            </div>
+            <div id="tutoring-result" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- Subir Material -->
+        <div class="section" id="upload-section" style="display: none;">
+            <h2>📤 Subir Material</h2>
+            <div class="form-group">
+                <label for="fileInput">Seleccionar Archivo:</label>
+                <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.mp4,.mp3,.ppt,.pptx,.zip">
+            </div>
+            <div class="form-group">
+                <label for="materialTitle">Título:</label>
+                <input type="text" id="materialTitle" placeholder="Ej: Ejercicios de Álgebra - Capítulo 1">
+            </div>
+            <div class="form-group">
+                <label for="materialDescription">Descripción:</label>
+                <textarea id="materialDescription" rows="3" placeholder="Descripción del material..."></textarea>
+            </div>
+            <div class="form-group">
+                <label for="materialType">Tipo de Material:</label>
+                <select id="materialType">
+                    <option value="document">Documento</option>
+                    <option value="image">Imagen</option>
+                    <option value="video">Video</option>
+                    <option value="audio">Audio</option>
+                    <option value="presentation">Presentación</option>
+                    <option value="other">Otro</option>
+                </select>
+            </div>
+            <button onclick="uploadMaterial()">📤 Subir Material</button>
+            <div id="uploadResult" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- Listar Materiales -->
+        <div class="section" id="materials-section" style="display: none;">
+            <h2>📂 Materiales de la Tutoría</h2>
+            <div class="form-group">
+                <label for="filterType">Filtrar por Tipo:</label>
+                <select id="filterType">
+                    <option value="">Todos los tipos</option>
+                    <option value="document">Documentos</option>
+                    <option value="image">Imágenes</option>
+                    <option value="video">Videos</option>
+                    <option value="audio">Audio</option>
+                    <option value="presentation">Presentaciones</option>
+                    <option value="other">Otros</option>
+                </select>
+            </div>
+            <button onclick="loadMaterials()">📂 Cargar Materiales</button>
+            <button onclick="clearMaterials()">🗑️ Limpiar Lista</button>
+            <div id="materialsResult" class="result" style="display: none;"></div>
+            <div id="materialsList" class="materials-list"></div>
+        </div>
+
+        <!-- Resultados y Logs -->
+        <div class="section">
+            <h2>📊 Logs de Actividad</h2>
+            <button onclick="clearLogs()">Limpiar Logs</button>
+            <div id="activityLogs" class="result" style="display: block;">Logs de actividad aparecerán aquí...</div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración
+        const SUPABASE_URL = 'https://xdqnuesrahrusfnxcwvm.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkcW51ZXNyYWhydXNmbnhjd3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ1OTk3NjAsImV4cCI6MjA2MDE3NTc2MH0.g9-gdoeMUw60904DqQRqI2VI97MPVmAkvwCuoAH7ToA';
+
+        // Estado global
+        let currentUser = {
+            supabase: null,
+            token: null,
+            userId: null,
+            email: null,
+            name: null
+        };
+        let materials = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('activityLogs');
+            const color = type === 'error' ? '#e74c3c' : type === 'success' ? '#27ae60' : '#3498db';
+            logElement.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function clearLogs() {
+            document.getElementById('activityLogs').innerHTML = 'Logs limpios...\n';
+        }
+
+        // Seleccionar usuario y autenticar automáticamente
+        async function selectUser(email, name) {
+            log(`🔄 Seleccionando usuario: ${name} (${email})`);
+            
+            currentUser.email = email;
+            currentUser.name = name;
+            
+            // Mostrar estado de autenticación
+            showResult('auth-status', `Autenticando ${name}...`, 'info');
+            
+            // Autenticar
+            await authenticate(email, name);
+        }
+
+        // Autenticar usuario
+        async function authenticate(email, name) {
+            try {
+                log(`🔄 Intentando autenticar: ${name} (${email})`);
+
+                // Crear cliente Supabase
+                currentUser.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+                // Intentar login primero
+                let { data, error } = await currentUser.supabase.auth.signInWithPassword({
+                    email: email,
+                    password: 'NUEVACUENTA'
+                });
+
+                // Si no existe, crear usuario
+                if (error && error.message.includes('Invalid login credentials')) {
+                    log(`🔄 Creando usuario ${name}...`);
+
+                    const { data: signUpData, error: signUpError } = await currentUser.supabase.auth.signUp({
+                        email: email,
+                        password: 'NUEVACUENTA'
+                    });
+
+                    if (signUpError) {
+                        throw signUpError;
+                    }
+
+                    log(`✅ Usuario ${name} creado, intentando login...`);
+
+                    // Intentar login de nuevo
+                    ({ data, error } = await currentUser.supabase.auth.signInWithPassword({
+                        email: email,
+                        password: 'NUEVACUENTA'
+                    }));
+                }
+
+                if (error) {
+                    throw error;
+                }
+
+                if (!data.session) {
+                    throw new Error('No se pudo obtener la sesión de autenticación');
+                }
+
+                currentUser.token = data.session.access_token;
+                currentUser.userId = data.user.id;
+
+                showResult('auth-status', `✅ ${name} autenticado exitosamente`, 'success');
+                log(`✅ ${name} autenticado exitosamente`, 'success');
+
+                // Mostrar secciones
+                document.getElementById('tutoring-config').style.display = 'block';
+                document.getElementById('upload-section').style.display = 'block';
+                document.getElementById('materials-section').style.display = 'block';
+
+                log(`Usuario ID: ${data.user.id}`);
+                log(`Token obtenido: ${data.session.access_token.substring(0, 20)}...`);
+
+            } catch (error) {
+                showResult('auth-status', `❌ Error: ${error.message}`, 'error');
+                log(`❌ Error autenticando ${name}: ${error.message}`, 'error');
+            }
+        }
+
+        // Crear tutoría de prueba
+        async function createTestTutoring() {
+            if (!currentUser.token) {
+                showResult('tutoring-result', 'Primero selecciona un usuario', 'error');
+                return;
+            }
+
+            try {
+                log('🔄 Creando tutoría de prueba...');
+                
+                // Generar UUID simple para la tutoría
+                const tutoringId = 'tutoring-' + Date.now() + '-' + Math.random().toString(36).substring(2, 15);
+                
+                document.getElementById('tutoringId').value = tutoringId;
+                showResult('tutoring-result', `✅ ID de tutoría generado: ${tutoringId}`, 'success');
+                log(`✅ ID de tutoría de prueba: ${tutoringId}`, 'success');
+
+            } catch (error) {
+                showResult('tutoring-result', `❌ Error: ${error.message}`, 'error');
+                log(`❌ Error creando tutoría: ${error.message}`, 'error');
+            }
+        }
+
+        // Validar tutoría
+        async function validateTutoring() {
+            const tutoringId = getTutoringId();
+            if (!tutoringId) {
+                showResult('tutoring-result', 'Ingresa un ID de tutoría', 'error');
+                return;
+            }
+
+            showResult('tutoring-result', `✅ ID de tutoría válido: ${tutoringId}`, 'success');
+            log(`✅ Usando tutoría: ${tutoringId}`, 'success');
+        }
+
+        function getHeaders() {
+            return {
+                'Authorization': `Bearer ${currentUser.token}`,
+                'Content-Type': 'application/json'
+            };
+        }
+
+        function getApiUrl() {
+            return document.getElementById('apiUrl').value;
+        }
+
+        function getTutoringId() {
+            return document.getElementById('tutoringId').value;
+        }
+
+        async function uploadMaterial() {
+            const fileInput = document.getElementById('fileInput');
+            const title = document.getElementById('materialTitle').value;
+            const description = document.getElementById('materialDescription').value;
+            const type = document.getElementById('materialType').value;
+            const tutoringId = getTutoringId();
+
+            if (!currentUser.token) {
+                showResult('uploadResult', 'Primero selecciona un usuario', 'error');
+                log('Error: Usuario no autenticado', 'error');
+                return;
+            }
+
+            if (!fileInput.files[0]) {
+                showResult('uploadResult', 'Por favor selecciona un archivo', 'error');
+                log('Error: No se seleccionó ningún archivo', 'error');
+                return;
+            }
+
+            if (!title || !tutoringId) {
+                showResult('uploadResult', 'Por favor completa el título y el ID de tutoría', 'error');
+                log('Error: Faltan campos requeridos', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('title', title);
+            formData.append('description', description);
+            formData.append('tutoringId', tutoringId);
+            formData.append('type', type);
+
+            log(`Subiendo material: ${title}...`);
+
+            try {
+                const response = await fetch(`${getApiUrl()}/materials/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${currentUser.token}`
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showResult('uploadResult', JSON.stringify(result, null, 2), 'success');
+                    log(`✅ Material subido exitosamente: ${result.title}`, 'success');
+                    
+                    // Limpiar formulario
+                    document.getElementById('fileInput').value = '';
+                    document.getElementById('materialTitle').value = '';
+                    document.getElementById('materialDescription').value = '';
+                    
+                    // Recargar lista de materiales
+                    loadMaterials();
+                } else {
+                    showResult('uploadResult', JSON.stringify(result, null, 2), 'error');
+                    log(`❌ Error al subir material: ${result.message || 'Error desconocido'}`, 'error');
+                }
+            } catch (error) {
+                showResult('uploadResult', `Error: ${error.message}`, 'error');
+                log(`❌ Error de conexión: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadMaterials() {
+            const tutoringId = getTutoringId();
+            const filterType = document.getElementById('filterType').value;
+
+            if (!currentUser.token) {
+                showResult('materialsResult', 'Primero selecciona un usuario', 'error');
+                log('Error: Usuario no autenticado', 'error');
+                return;
+            }
+
+            if (!tutoringId) {
+                showResult('materialsResult', 'Por favor ingresa el ID de tutoría', 'error');
+                log('Error: ID de tutoría requerido', 'error');
+                return;
+            }
+
+            let url = `${getApiUrl()}/materials/tutoring/${tutoringId}`;
+            if (filterType) {
+                url += `?type=${filterType}`;
+            }
+
+            log(`Cargando materiales de tutoría: ${tutoringId}...`);
+
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${currentUser.token}`
+                    }
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    materials = result.materials || [];
+                    showResult('materialsResult', JSON.stringify(result, null, 2), 'success');
+                    renderMaterials(materials);
+                    log(`✅ Cargados ${materials.length} materiales`, 'success');
+                } else {
+                    showResult('materialsResult', JSON.stringify(result, null, 2), 'error');
+                    log(`❌ Error al cargar materiales: ${result.message || 'Error desconocido'}`, 'error');
+                }
+            } catch (error) {
+                showResult('materialsResult', `Error: ${error.message}`, 'error');
+                log(`❌ Error de conexión: ${error.message}`, 'error');
+            }
+        }
+
+        function renderMaterials(materials) {
+            const container = document.getElementById('materialsList');
+            
+            if (materials.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #7f8c8d;">No hay materiales en esta tutoría</p>';
+                return;
+            }
+
+            container.innerHTML = materials.map(material => `
+                <div class="material-item">
+                    <h4>${material.title}</h4>
+                    <div class="material-meta">
+                        <strong>Tipo:</strong> ${material.type}<br>
+                        <strong>Tamaño:</strong> ${formatFileSize(material.size)}<br>
+                        <strong>Creado:</strong> ${new Date(material.created_at).toLocaleString()}<br>
+                        ${material.description ? `<strong>Descripción:</strong> ${material.description}` : ''}
+                    </div>
+                    <div class="material-actions">
+                        <button onclick="downloadMaterial('${material.id}')">Descargar</button>
+                        <button onclick="editMaterial('${material.id}', '${material.title}', '${material.description || ''}')">Editar</button>
+                        <button class="danger" onclick="deleteMaterial('${material.id}', '${material.title}')">Eliminar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function clearMaterials() {
+            document.getElementById('materialsList').innerHTML = '';
+            document.getElementById('materialsResult').style.display = 'none';
+            materials = [];
+            log('Lista de materiales limpiada');
+        }
+
+        async function downloadMaterial(materialId) {
+            if (!currentUser.token) {
+                log('❌ Error: Usuario no autenticado', 'error');
+                return;
+            }
+
+            log(`Descargando material: ${materialId}...`);
+
+            try {
+                const response = await fetch(`${getApiUrl()}/materials/${materialId}/download`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${currentUser.token}`
+                    }
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    window.open(result.downloadUrl, '_blank');
+                    log(`✅ URL de descarga generada para: ${result.material.title}`, 'success');
+                } else {
+                    log(`❌ Error al generar URL de descarga: ${result.message || 'Error desconocido'}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error de conexión: ${error.message}`, 'error');
+            }
+        }
+
+        function editMaterial(materialId, currentTitle, currentDescription) {
+            const newTitle = prompt('Nuevo título:', currentTitle);
+            if (newTitle === null) return;
+
+            const newDescription = prompt('Nueva descripción:', currentDescription);
+            if (newDescription === null) return;
+
+            updateMaterial(materialId, newTitle, newDescription);
+        }
+
+        async function updateMaterial(materialId, title, description) {
+            if (!currentUser.token) {
+                log('❌ Error: Usuario no autenticado', 'error');
+                return;
+            }
+
+            log(`Actualizando material: ${materialId}...`);
+
+            try {
+                const response = await fetch(`${getApiUrl()}/materials/${materialId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${currentUser.token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ title, description })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    log(`✅ Material actualizado: ${result.title}`, 'success');
+                    loadMaterials();
+                } else {
+                    log(`❌ Error al actualizar material: ${result.message || 'Error desconocido'}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error de conexión: ${error.message}`, 'error');
+            }
+        }
+
+        async function deleteMaterial(materialId, title) {
+            if (!currentUser.token) {
+                log('❌ Error: Usuario no autenticado', 'error');
+                return;
+            }
+
+            if (!confirm(`¿Estás seguro de que quieres eliminar "${title}"?`)) {
+                return;
+            }
+
+            log(`Eliminando material: ${title}...`);
+
+            try {
+                const response = await fetch(`${getApiUrl()}/materials/${materialId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${currentUser.token}`
+                    }
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    log(`✅ Material eliminado: ${title}`, 'success');
+                    loadMaterials();
+                } else {
+                    log(`❌ Error al eliminar material: ${result.message || 'Error desconocido'}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error de conexión: ${error.message}`, 'error');
+            }
+        }
+
+        function showResult(elementId, content, type) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.textContent = content;
+            element.className = `result ${type}`;
+        }
+
+        function formatFileSize(bytes) {
+            if (!bytes) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Inicialización
+        log('🎓 Sistema de Materiales de Tutoría iniciado', 'success');
+        log('Por favor, selecciona un usuario para comenzar');
+
+        // Verificar conexión al classroom service
+        const classroomApiUrl = 'http://localhost:3002';
+        fetch(`${classroomApiUrl}`)
+            .then(response => response.text())
+            .then(text => {
+                log('✅ Classroom Service está disponible', 'success');
+            })
+            .catch(error => {
+                log('❌ Classroom Service NO está disponible en http://localhost:3002', 'error');
+                log('⚠️ Por favor ejecuta: npm run start:dev:classroom', 'error');
+            });
+
+        console.log(`
+🎓 TEST SISTEMA DE MATERIALES - MULTI-USUARIO
+
+📱 INSTRUCCIONES PARA PRUEBA:
+
+1. Haz clic en "Soy Rodrigo Salvador" o "Soy Rodrigo Lopez"
+2. El sistema se autenticará automáticamente con Supabase
+3. Haz clic en "Crear Tutoría de Prueba" para generar un ID
+4. Sube archivos y gestiona materiales de la tutoría
+
+🔧 CONFIGURACIÓN ACTUAL:
+- Classroom API: ${classroomApiUrl}
+- Supabase URL: ${SUPABASE_URL}
+- Puerto esperado: 3004 (classroom-service)
+
+⚠️ IMPORTANTE: Asegúrate de que el classroom-service esté ejecutándose en el puerto 3004
+        `);
+    </script>
+</body>
+</html>
