@@ -86,12 +86,7 @@ export class ChatServiceService {
             created_at,
             is_active,
             tutoring_session_id,
-            created_by,
-            profiles!chat_rooms_created_by_fkey (
-              first_name,
-              last_name,
-              avatar
-            )
+            created_by
           )
         `)
         .eq('user_id', userId);
@@ -202,23 +197,7 @@ export class ChatServiceService {
           file_url: fileUrl || null,
           file_size: fileSize || null,
         })
-        .select(`
-          *,
-          profiles!chat_messages_sender_id_fkey (
-            first_name,
-            last_name,
-            avatar
-          ),
-          reply_message:chat_messages!chat_messages_reply_to_fkey (
-            id,
-            content,
-            sender_id,
-            profiles!chat_messages_sender_id_fkey (
-              first_name,
-              last_name
-            )
-          )
-        `)
+        .select('*')
         .single();
 
       if (messageError) {
@@ -255,23 +234,7 @@ export class ChatServiceService {
 
       const { data: messages, error: messagesError } = await this.supabase
         .from('chat_messages')
-        .select(`
-          *,
-          profiles!chat_messages_sender_id_fkey (
-            first_name,
-            last_name,
-            avatar
-          ),
-          reply_message:chat_messages!chat_messages_reply_to_fkey (
-            id,
-            content,
-            sender_id,
-            profiles!chat_messages_sender_id_fkey (
-              first_name,
-              last_name
-            )
-          )
-        `)
+        .select('*')
         .eq('room_id', roomId)
         .eq('is_deleted', false)
         .order('created_at', { ascending: false })
@@ -324,14 +287,7 @@ export class ChatServiceService {
           updated_at: new Date().toISOString(),
         })
         .eq('id', messageId)
-        .select(`
-          *,
-          profiles!chat_messages_sender_id_fkey (
-            first_name,
-            last_name,
-            avatar
-          )
-        `)
+        .select('*')
         .single();
 
       if (updateError) {
@@ -438,20 +394,7 @@ export class ChatServiceService {
 
       const { data: participants, error } = await this.supabase
         .from('chat_participants')
-        .select(`
-          id,
-          is_admin,
-          joined_at,
-          last_seen,
-          profiles!chat_participants_user_id_fkey (
-            id,
-            first_name,
-            last_name,
-            avatar,
-            role,
-            status
-          )
-        `)
+        .select('*')
         .eq('room_id', roomId);
 
       if (error) {
