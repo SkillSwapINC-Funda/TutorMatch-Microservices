@@ -7,12 +7,6 @@ import { ValidationPipe } from '@nestjs/common';
 import { ChatServiceModule } from './chat-service.module';
 
 async function bootstrap() {
-  console.log('=== CHAT SERVICE DEBUG ===');
-  console.log('SUPABASE_URL:', process.env.SUPABASE_URL || 'UNDEFINED');
-  console.log('SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? 'SET' : 'UNDEFINED');
-  console.log('SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'UNDEFINED');
-  console.log('========================');
-
   // Verificar variables críticas
   const requiredVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
   const missingVars = requiredVars.filter(varName => !process.env[varName]);
@@ -60,7 +54,7 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document, {
+  SwaggerModule.setup('swagger-ui', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
     },
@@ -71,6 +65,6 @@ async function bootstrap() {
 
   const baseUrl = `http://localhost:${port}`;
   console.log(`💬 Chat Service is running at ${baseUrl}`);
-  console.log(`📚 Swagger documentation available at ${baseUrl}/api/docs`);
+  console.log(`📚 Swagger documentation available at ${baseUrl}/swagger-ui`);
 }
 bootstrap();
