@@ -24,10 +24,8 @@ async function bootstrap() {
   
   // Configurar CORS más permisivo para desarrollo
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003', 'http://127.0.0.1:5500'],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    origin: '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
   });
 
   // Configurar validación global
@@ -53,7 +51,7 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('swagger-ui', app, document);
 
   // No configurar prefijo global para permitir que el proxy maneje todas las rutas
   // app.setGlobalPrefix('api/v1');
@@ -66,6 +64,6 @@ async function bootstrap() {
   console.log(`   • User Service: /api/users -> http://localhost:3001`);
   console.log(`   • Classroom Service: /api/classroom -> http://localhost:3002`);
   console.log(`   • Chat Service: /api/chat -> http://localhost:3003`);
-  console.log(`📝 Swagger documentation available at ${baseUrl}/api`);
+  console.log(`📝 Swagger documentation available at ${baseUrl}/swagger-ui`);
 }
 bootstrap();

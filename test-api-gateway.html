@@ -114,14 +114,17 @@
         
         <!-- Sección de Autenticación -->
         <div class="auth-section">
-            <h3>🔐 Autenticación con Supabase</h3>
+            <h3>🔐 Selecciona tu Usuario</h3>
             <div id="auth-status">
-                <span class="status loading">Conectando...</span>
-                <span id="auth-message">Inicializando Supabase...</span>
+                <span class="status disconnected" id="auth-status-indicator">Desconectado</span>
+                <span id="auth-message">Selecciona un usuario para continuar</span>
             </div>
-            <br><br>
-            <button onclick="loginWithSupabase()">🔑 Login con Supabase</button>
-            <button onclick="logout()">🚪 Logout</button>
+            <br>
+            <div style="margin-bottom: 15px;">
+                <button onclick="selectUser('u202213646@upc.edu.pe', 'Rodrigo Salvador')" id="user1-btn">👤 Soy Rodrigo Salvador</button>
+                <button onclick="selectUser('u202212338@upc.edu.pe', 'Rodrigo Lopez')" id="user2-btn">👤 Soy Rodrigo Lopez</button>
+            </div>
+            <button onclick="logout()">🚪 Desconectar</button>
             <div id="user-info" style="margin-top: 10px;"></div>
         </div>
 
@@ -207,8 +210,38 @@
             
             <div class="test-card">
                 <h3>Upload Material</h3>
-                <input type="file" id="upload-file" accept=".pdf,.doc,.docx,.txt,.jpg,.png">
-                <button onclick="testFileUpload()">Upload File via Gateway</button>
+                <div style="margin-bottom: 15px;">
+                    <label for="material-title" style="display: block; margin-bottom: 5px; font-weight: bold;">Título del Material:</label>
+                    <input type="text" id="material-title" placeholder="Ej: Ejercicios de Álgebra - Capítulo 1" 
+                           style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    
+                    <label for="material-description" style="display: block; margin-bottom: 5px; font-weight: bold;">Descripción (Opcional):</label>
+                    <textarea id="material-description" placeholder="Ej: Ejercicios prácticos sobre ecuaciones lineales" 
+                              style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; height: 60px; resize: vertical;"></textarea>
+                    
+                    <label for="tutoring-id" style="display: block; margin-bottom: 5px; font-weight: bold;">ID de Sesión de Tutoría (UUID):</label>
+                    <input type="text" id="tutoring-id" placeholder="Ej: 123e4567-e89b-12d3-a456-426614174000" 
+                           value="123e4567-e89b-12d3-a456-426614174000"
+                           style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    
+                    <label for="material-type" style="display: block; margin-bottom: 5px; font-weight: bold;">Tipo de Material:</label>
+                    <select id="material-type" style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="document">📄 Documento</option>
+                        <option value="image">🖼️ Imagen</option>
+                        <option value="video">🎥 Video</option>
+                        <option value="audio">🎵 Audio</option>
+                        <option value="presentation">📊 Presentación</option>
+                        <option value="other">📦 Otro</option>
+                    </select>
+                    
+                    <label for="upload-file" style="display: block; margin-bottom: 5px; font-weight: bold;">Archivo:</label>
+                    <input type="file" id="upload-file" accept=".pdf,.doc,.docx,.txt,.jpg,.png,.mp4,.mp3,.pptx,.xlsx" 
+                           style="width: 100%; padding: 8px; margin-bottom: 10px;">
+                </div>
+                
+                <button onclick="testFileUpload()">📤 Upload File via Gateway</button>
+                <button onclick="clearUploadForm()" style="background: #95a5a6;">🗑️ Limpiar Formulario</button>
+                
                 <div id="upload-result" class="result"></div>
             </div>
         </div>
@@ -220,47 +253,30 @@
     <script>
         // Configuración
         const GATEWAY_URL = 'http://localhost:3000';
-        const SUPABASE_URL = 'https://umsjcqvmmpmnohwrffha.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVtc2pjcXZtbXBtbm9od3JmZmhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5OTcyNDEsImV4cCI6MjA1MDU3MzI0MX0.u2j0JBKFWt3rBRu-fY4Ku3eTzk5v1GNRvrmhtWZj9w8';
+        const SUPABASE_URL = 'https://xdqnuesrahrusfnxcwvm.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkcW51ZXNyYWhydXNmbnhjd3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ1OTk3NjAsImV4cCI6MjA2MDE3NTc2MH0.g9-gdoeMUw60904DqQRqI2VI97MPVmAkvwCuoAH7ToA';
 
         let supabase;
-        let currentUser = null;
-        let authToken = null;
+        let currentUser = {
+            email: null,
+            name: null,
+            token: null,
+            userId: null,
+            supabase: null
+        };
 
         // Inicializar Supabase
         function initSupabase() {
             try {
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                updateAuthStatus('connected', 'Supabase conectado');
-                
-                // Verificar sesión existente
-                supabase.auth.getSession().then(({ data: { session } }) => {
-                    if (session) {
-                        currentUser = session.user;
-                        authToken = session.access_token;
-                        updateUserInfo();
-                    }
-                });
-
-                // Escuchar cambios de autenticación
-                supabase.auth.onAuthStateChange((event, session) => {
-                    if (session) {
-                        currentUser = session.user;
-                        authToken = session.access_token;
-                        updateUserInfo();
-                    } else {
-                        currentUser = null;
-                        authToken = null;
-                        updateUserInfo();
-                    }
-                });
+                updateAuthStatus('disconnected', 'Selecciona un usuario para continuar');
             } catch (error) {
                 updateAuthStatus('disconnected', 'Error conectando con Supabase: ' + error.message);
             }
         }
 
         function updateAuthStatus(status, message) {
-            const statusElement = document.querySelector('.status');
+            const statusElement = document.getElementById('auth-status-indicator');
             const messageElement = document.getElementById('auth-message');
             
             statusElement.className = `status ${status}`;
@@ -271,37 +287,116 @@
 
         function updateUserInfo() {
             const userInfoElement = document.getElementById('user-info');
-            if (currentUser) {
+            if (currentUser.token) {
                 userInfoElement.innerHTML = `
-                    <strong>Usuario:</strong> ${currentUser.email}<br>
-                    <strong>ID:</strong> ${currentUser.id}<br>
-                    <strong>Token:</strong> ${authToken ? 'Disponible' : 'No disponible'}
+                    <strong>Usuario:</strong> ${currentUser.name}<br>
+                    <strong>Email:</strong> ${currentUser.email}<br>
+                    <strong>ID:</strong> ${currentUser.userId}<br>
+                    <strong>Token:</strong> ${currentUser.token ? 'Disponible' : 'No disponible'}
                 `;
             } else {
                 userInfoElement.innerHTML = '<em>No autenticado</em>';
             }
         }
 
-        async function loginWithSupabase() {
+        // Seleccionar usuario y autenticar
+        async function selectUser(email, name) {
+            console.log(`🔄 Seleccionando usuario: ${name} (${email})`);
+            
+            currentUser.email = email;
+            currentUser.name = name;
+            
+            updateAuthStatus('loading', `Autenticando ${name}...`);
+            
+            // Autenticar
+            await authenticate(email, name);
+        }
+
+        // Autenticar usuario
+        async function authenticate(email, name) {
+            console.log(`🔄 Intentando autenticar: ${name} (${email})`);
+
             try {
-                const { data, error } = await supabase.auth.signInWithOAuth({
-                    provider: 'github',
-                    options: {
-                        redirectTo: window.location.href
-                    }
+                // Crear cliente Supabase
+                currentUser.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+                // Intentar login primero
+                let { data, error } = await currentUser.supabase.auth.signInWithPassword({
+                    email: email,
+                    password: 'NUEVACUENTA'
                 });
-                
-                if (error) throw error;
+
+                // Si no existe, crear usuario
+                if (error && error.message.includes('Invalid login credentials')) {
+                    console.log(`🔄 Creando usuario ${name}...`);
+
+                    const { data: signUpData, error: signUpError } = await currentUser.supabase.auth.signUp({
+                        email: email,
+                        password: 'NUEVACUENTA'
+                    });
+
+                    if (signUpError) {
+                        throw signUpError;
+                    }
+
+                    console.log(`✅ Usuario ${name} creado, intentando login...`);
+
+                    // Intentar login de nuevo
+                    ({ data, error } = await currentUser.supabase.auth.signInWithPassword({
+                        email: email,
+                        password: 'NUEVACUENTA'
+                    }));
+                }
+
+                if (error) {
+                    throw error;
+                }
+
+                if (!data.session) {
+                    throw new Error('No se pudo obtener la sesión de autenticación');
+                }
+
+                currentUser.token = data.session.access_token;
+                currentUser.userId = data.user.id;
+
+                updateAuthStatus('connected', `✅ ${name} conectado`);
+                updateUserInfo();
+
+                console.log(`✅ ${name} autenticado exitosamente:`, {
+                    userId: data.user.id,
+                    email: data.user.email
+                });
+
             } catch (error) {
-                updateAuthStatus('disconnected', 'Error en login: ' + error.message);
+                console.error(`❌ Error autenticando ${name}:`, error);
+                updateAuthStatus('disconnected', `❌ Error: ${error.message}`);
+                currentUser = {
+                    email: null,
+                    name: null,
+                    token: null,
+                    userId: null,
+                    supabase: null
+                };
+                updateUserInfo();
             }
         }
 
         async function logout() {
             try {
-                const { error } = await supabase.auth.signOut();
-                if (error) throw error;
+                if (currentUser.supabase) {
+                    await currentUser.supabase.auth.signOut();
+                }
+                
+                currentUser = {
+                    email: null,
+                    name: null,
+                    token: null,
+                    userId: null,
+                    supabase: null
+                };
+                
                 updateAuthStatus('disconnected', 'Sesión cerrada');
+                updateUserInfo();
             } catch (error) {
                 updateAuthStatus('disconnected', 'Error cerrando sesión: ' + error.message);
             }
@@ -310,14 +405,23 @@
         // Función auxiliar para hacer requests
         async function makeRequest(endpoint, options = {}) {
             const url = `${GATEWAY_URL}${endpoint}`;
+            
+            // Si es FormData, no incluir Content-Type
+            const isFormData = options.body instanceof FormData;
+            
             const defaultOptions = {
                 headers: {
-                    'Content-Type': 'application/json',
-                    ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+                    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+                    ...(currentUser.token && { 'Authorization': `Bearer ${currentUser.token}` })
                 }
             };
             
             const finalOptions = { ...defaultOptions, ...options };
+            
+            // Merge headers correctamente
+            if (options.headers) {
+                finalOptions.headers = { ...defaultOptions.headers, ...options.headers };
+            }
             
             try {
                 console.log(`Making request to: ${url}`);
@@ -401,9 +505,9 @@
 
         // Tests con Autenticación
         async function testUserProfile() {
-            if (!authToken) {
+            if (!currentUser.token) {
                 document.getElementById('user-profile-result').textContent = 
-                    'Error: No hay token de autenticación. Haz login primero.';
+                    'Error: No hay token de autenticación. Selecciona un usuario primero.';
                 return;
             }
             
@@ -413,9 +517,9 @@
         }
 
         async function testChatRooms() {
-            if (!authToken) {
+            if (!currentUser.token) {
                 document.getElementById('chat-rooms-result').textContent = 
-                    'Error: No hay token de autenticación. Haz login primero.';
+                    'Error: No hay token de autenticación. Selecciona un usuario primero.';
                 return;
             }
             
@@ -425,9 +529,9 @@
         }
 
         async function testMaterialsList() {
-            if (!authToken) {
+            if (!currentUser.token) {
                 document.getElementById('materials-list-result').textContent = 
-                    'Error: No hay token de autenticación. Haz login primero.';
+                    'Error: No hay token de autenticación. Selecciona un usuario primero.';
                 return;
             }
             
@@ -438,36 +542,92 @@
 
         // Test de Upload
         async function testFileUpload() {
-            if (!authToken) {
+            if (!currentUser.token) {
                 document.getElementById('upload-result').textContent = 
-                    'Error: No hay token de autenticación. Haz login primero.';
+                    'Error: No hay token de autenticación. Selecciona un usuario primero.';
                 return;
             }
 
             const fileInput = document.getElementById('upload-file');
-            const file = fileInput.files[0];
+            const titleInput = document.getElementById('material-title');
+            const descriptionInput = document.getElementById('material-description');
+            const tutoringIdInput = document.getElementById('tutoring-id');
+            const typeSelect = document.getElementById('material-type');
             
+            const file = fileInput.files[0];
+            const title = titleInput.value.trim();
+            const description = descriptionInput.value.trim();
+            const tutoringId = tutoringIdInput.value.trim();
+            const type = typeSelect.value;
+            
+            // Validaciones
             if (!file) {
                 document.getElementById('upload-result').textContent = 
                     'Error: Selecciona un archivo primero.';
                 return;
             }
+            
+            if (!title) {
+                document.getElementById('upload-result').textContent = 
+                    'Error: El título es requerido.';
+                return;
+            }
+            
+            if (!tutoringId) {
+                document.getElementById('upload-result').textContent = 
+                    'Error: El ID de sesión de tutoría es requerido.';
+                return;
+            }
+            
+            // Validar formato UUID básico
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (!uuidRegex.test(tutoringId)) {
+                document.getElementById('upload-result').textContent = 
+                    'Error: El ID de sesión debe ser un UUID válido (formato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx).';
+                return;
+            }
 
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('title', `Test upload: ${file.name}`);
-            formData.append('description', 'Archivo subido desde test del API Gateway');
+            formData.append('title', title);
+            formData.append('tutoringId', tutoringId);
+            formData.append('type', type);
+            
+            // Solo agregar descripción si no está vacía
+            if (description) {
+                formData.append('description', description);
+            }
 
+            console.log('Uploading file with data:', {
+                fileName: file.name,
+                title: title,
+                description: description || 'Sin descripción',
+                tutoringId: tutoringId,
+                type: type
+            });
+
+            // Para FormData, NO incluir Content-Type, el navegador lo maneja automáticamente
             const result = await makeRequest('/api/classroom/materials/upload', {
                 method: 'POST',
                 headers: {
-                    ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+                    // Solo Authorization, sin Content-Type para FormData
+                    ...(currentUser.token && { 'Authorization': `Bearer ${currentUser.token}` })
                 },
                 body: formData
             });
 
             document.getElementById('upload-result').textContent = 
                 JSON.stringify(result, null, 2);
+        }
+        
+        // Función para limpiar el formulario de upload
+        function clearUploadForm() {
+            document.getElementById('upload-file').value = '';
+            document.getElementById('material-title').value = '';
+            document.getElementById('material-description').value = '';
+            document.getElementById('tutoring-id').value = '123e4567-e89b-12d3-a456-426614174000';
+            document.getElementById('material-type').value = 'document';
+            document.getElementById('upload-result').textContent = '';
         }
 
         // Inicializar cuando carga la página

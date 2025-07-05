@@ -9,7 +9,7 @@ import { Public } from '@app/shared';
 export class ProxyController {
   private readonly logger = new Logger(ProxyController.name);
 
-  constructor(private readonly proxyService: ProxyService) {}
+  constructor(private readonly proxyService: ProxyService) { }
 
   @Public()
   @Get('/health')
@@ -42,20 +42,39 @@ export class ProxyController {
   @ApiResponse({ status: 404, description: 'Service not found' })
   @ApiResponse({ status: 502, description: 'Service unavailable' })
   async proxyToMicroservice(
-    @Req() req: Request,
-    @Res() res: Response,
-    @Next() next: NextFunction,
-  ): Promise<void> {
+    @Req() req: Request, 
+    @Res() res: Response, 
+    @Next() next: NextFunction
+  ) {
     try {
+      // Verificar que req existe
+      if (!req) {
+        this.logger.error('Request object is undefined');
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'Invalid request',
+          statusCode: 400
+        });
+      }
+
       await this.proxyService.proxyRequest(req, res, next);
     } catch (error) {
-      this.logger.error('Proxy error:', error);
+      this.logger.error(`Proxy error for ${req?.path || 'unknown path'}:`, error);
+
       if (!res.headersSent) {
-        res.status(502).json({
-          error: 'Bad Gateway',
-          message: 'Service temporarily unavailable',
-          statusCode: 502
-        });
+        if (error?.code === 'ECONNREFUSED') {
+          res.status(503).json({
+            error: 'Service Unavailable',
+            message: 'The requested service is temporarily unavailable',
+            statusCode: 503
+          });
+        } else {
+          res.status(502).json({
+            error: 'Bad Gateway',
+            message: 'Service temporarily unavailable',
+            statusCode: 502
+          });
+        }
       }
     }
   }

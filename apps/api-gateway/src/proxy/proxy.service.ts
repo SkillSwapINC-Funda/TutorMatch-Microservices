@@ -89,11 +89,17 @@ export class ProxyService {
   async healthCheck(): Promise<{ [key: string]: string }> {
     const results: { [key: string]: string } = {};
     
-    // TODO: Implementar ping a cada microservicio
     for (const service of MICROSERVICES_CONFIG) {
       try {
-        // Aquí podrías hacer un ping real al health endpoint de cada servicio
-        results[service.name] = 'healthy';
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch(`${service.url}${service.healthEndpoint}`, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        results[service.name] = response.ok ? 'healthy' : 'unhealthy';
       } catch (error) {
         results[service.name] = 'unhealthy';
       }
