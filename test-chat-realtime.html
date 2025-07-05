@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Chat Tiempo Real - TutorMatch</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            height: 80vh;
+        }
+
+        .chat-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            background: #007bff;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            min-height: 300px;
+            background: #fafafa;
+        }
+
+        .message {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            background: white;
+            border-left: 3px solid #007bff;
+        }
+
+        .message.own {
+            background: #e3f2fd;
+            border-left-color: #2196f3;
+        }
+
+        .message.system {
+            background: #fff3e0;
+            border-left-color: #ff9800;
+            font-style: italic;
+        }
+
+        .message-header {
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .input-group button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .input-group button:hover {
+            background: #0056b3;
+        }
+
+        .status {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .controls {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .controls button {
+            margin: 5px;
+            padding: 8px 16px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .controls button:hover {
+            background: #218838;
+        }
+
+        .online-users {
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .room-info {
+            background: #e8f4fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        #room-id-input {
+            margin: 5px;
+            padding: 8px;
+            width: 200px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .instructions {
+            padding: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .instructions ol li {
+            margin-bottom: 8px;
+        }
+
+        .tip-box {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 15px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .debug-box {
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 12px;
+            border-left: 4px solid #28a745;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔥 Test Chat Tiempo Real - TutorMatch</h1>
+
+    <div class="controls">
+        <h3>🔧 Selecciona tu Usuario</h3>
+        <div style="margin-bottom: 15px;">
+            <button onclick="selectUser('u202213646@upc.edu.pe', 'Rodrigo Salvador')" id="user1-btn">👤 Soy Rodrigo Salvador</button>
+            <button onclick="selectUser('u202212338@upc.edu.pe', 'Rodrigo Lopez')" id="user2-btn">👤 Soy Rodrigo Lopez</button>
+        </div>
+        
+        <div id="room-controls" style="display: none;">
+            <h3>🏠 Control de Sala</h3>
+            <input type="text" id="room-id-input" placeholder="ID de la sala (opcional)" style="margin: 5px; padding: 8px; width: 200px;">
+            <br>
+            <button onclick="createRoom()">🏠 Crear Nueva Sala</button>
+            <button onclick="joinExistingRoom()">➕ Unirse a Sala Existente</button>
+        </div>
+        
+        <div style="margin-top: 15px;">
+            <button onclick="clearMessages()">🗑️ Limpiar Mensajes</button>
+            <button onclick="disconnect()">🚪 Desconectar</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="chat-panel">
+            <div class="chat-header">
+                <h3 id="user-title">👤 Selecciona un usuario</h3>
+                <div id="status" class="status disconnected">Desconectado</div>
+            </div>
+
+            <div class="online-users">
+                <strong>👥 En línea:</strong> <span id="online">-</span>
+            </div>
+
+            <div class="room-info" style="background: #e8f4fd; padding: 10px; border-radius: 4px; margin-bottom: 10px;">
+                <strong>🏠 Sala actual:</strong> <span id="current-room">Ninguna</span>
+            </div>
+
+            <div id="messages" class="messages"></div>
+
+            <div class="input-group">
+                <input type="text" id="message-input" placeholder="Selecciona un usuario primero..." disabled
+                    onkeypress="handleKeyPress(event)">
+                <button onclick="sendMessage()" disabled id="send-btn">📤 Enviar</button>
+            </div>
+        </div>
+
+        <div class="chat-panel" style="background: #f8f9fa;">
+            <div class="chat-header" style="background: #6c757d;">
+                <h3>📋 Instrucciones</h3>
+            </div>
+            <div style="padding: 20px; font-size: 14px; line-height: 1.6;">
+                <h4>� Prueba de Chat en Tiempo Real</h4>
+                <ol>
+                    <li><strong>Abre este archivo en dos navegadores diferentes</strong></li>
+                    <li>En el primer navegador: Haz clic en "Soy Rodrigo Salvador"</li>
+                    <li>En el segundo navegador: Haz clic en "Soy Rodrigo Lopez"</li>
+                    <li>En cualquiera de los dos: Haz clic en "Crear Nueva Sala"</li>
+                    <li>Copia el ID de la sala y pégalo en el otro navegador</li>
+                    <li>En el segundo navegador: Haz clic en "Unirse a Sala Existente"</li>
+                    <li>¡Ahora pueden escribirse mensajes en tiempo real!</li>
+                </ol>
+                
+                <div style="background: #fff3cd; padding: 10px; border-radius: 4px; margin-top: 15px;">
+                    <strong>💡 Tip:</strong> Los mensajes aparecerán instantáneamente en ambos navegadores gracias a Supabase Realtime.
+                </div>
+
+                <div id="debug-info" style="background: #d4edda; padding: 10px; border-radius: 4px; margin-top: 15px; font-family: monospace; font-size: 12px;">
+                    <strong>🔧 Debug Info:</strong><br>
+                    Usuario: <span id="debug-user">-</span><br>
+                    Sala: <span id="debug-room">-</span><br>
+                    Estado: <span id="debug-status">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración
+        const SUPABASE_URL = 'https://xdqnuesrahrusfnxcwvm.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkcW51ZXNyYWhydXNmbnhjd3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ1OTk3NjAsImV4cCI6MjA2MDE3NTc2MH0.g9-gdoeMUw60904DqQRqI2VI97MPVmAkvwCuoAH7ToA';
+        const CHAT_API = 'http://localhost:3003/chat';
+
+        // Estado global
+        let currentUser = {
+            supabase: null,
+            token: null,
+            userId: null,
+            email: null,
+            name: null
+        };
+        let currentRoom = null;
+        let channel = null;
+
+        // Seleccionar usuario
+        async function selectUser(email, name) {
+            console.log(`🔄 Seleccionando usuario: ${name} (${email})`);
+            
+            currentUser.email = email;
+            currentUser.name = name;
+            
+            // Actualizar UI
+            document.getElementById('user-title').textContent = `👤 ${name}`;
+            document.getElementById('debug-user').textContent = `${name} (${email})`;
+            
+            // Autenticar
+            await authenticate(email, name);
+        }
+
+        // Autenticar usuario
+        async function authenticate(email, name) {
+            console.log(`🔄 Intentando autenticar: ${name} (${email})`);
+
+            try {
+                // Crear cliente Supabase
+                currentUser.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+                // Intentar login primero
+                let { data, error } = await currentUser.supabase.auth.signInWithPassword({
+                    email: email,
+                    password: 'NUEVACUENTA'
+                });
+
+                // Si no existe, crear usuario
+                if (error && error.message.includes('Invalid login credentials')) {
+                    console.log(`🔄 Creando usuario ${name}...`);
+
+                    const { data: signUpData, error: signUpError } = await currentUser.supabase.auth.signUp({
+                        email: email,
+                        password: 'NUEVACUENTA'
+                    });
+
+                    if (signUpError) {
+                        throw signUpError;
+                    }
+
+                    console.log(`✅ Usuario ${name} creado, intentando login...`);
+
+                    // Intentar login de nuevo
+                    ({ data, error } = await currentUser.supabase.auth.signInWithPassword({
+                        email: email,
+                        password: 'NUEVACUENTA'
+                    }));
+                }
+
+                if (error) {
+                    throw error;
+                }
+
+                if (!data.session) {
+                    throw new Error('No se pudo obtener la sesión de autenticación');
+                }
+
+                currentUser.token = data.session.access_token;
+                currentUser.userId = data.user.id;
+
+                updateStatus('connected', `✅ ${name} conectado`);
+                updateDebugInfo();
+                
+                // Mostrar controles de sala
+                document.getElementById('room-controls').style.display = 'block';
+                
+                // Habilitar input de mensajes
+                const messageInput = document.getElementById('message-input');
+                const sendBtn = document.getElementById('send-btn');
+                messageInput.disabled = false;
+                messageInput.placeholder = 'Escribe un mensaje...';
+                sendBtn.disabled = false;
+
+                console.log(`✅ ${name} autenticado exitosamente:`, {
+                    userId: data.user.id,
+                    email: data.user.email
+                });
+
+            } catch (error) {
+                console.error(`❌ Error autenticando ${name}:`, error);
+                updateStatus('disconnected', `❌ Error: ${error.message}`);
+            }
+        }
+
+        // Crear sala de prueba
+        async function createRoom() {
+            if (!currentUser.token) {
+                alert('Primero selecciona y conecta un usuario');
+                return;
+            }
+
+            try {
+                console.log('🔄 Creando sala...');
+                const response = await fetch(`${CHAT_API}/rooms`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentUser.token}`
+                    },
+                    body: JSON.stringify({
+                        name: `Sala de ${currentUser.name} - ${new Date().toLocaleTimeString()}`,
+                        type: 'group'
+                    })
+                });
+
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    throw new Error(`Error ${response.status}: ${errorText}`);
+                }
+
+                const room = await response.json();
+                currentRoom = room.id;
+
+                console.log('✅ Sala creada exitosamente:', room);
+                
+                // Actualizar UI
+                updateRoomInfo(room.id, room.name);
+                
+                alert(`🏠 Sala creada exitosamente!\n\nID: ${room.id}\nNombre: ${room.name}\n\n📋 Comparte este ID con la otra persona para que se una a la sala.`);
+
+                // Configurar tiempo real
+                setupRealtime();
+
+                // Cargar mensajes existentes
+                await loadExistingMessages();
+
+            } catch (error) {
+                console.error('❌ Error creando sala:', error);
+                alert(`❌ Error creando sala: ${error.message}`);
+            }
+        }
+
+        // Unirse a sala existente
+        async function joinExistingRoom() {
+            if (!currentUser.token) {
+                alert('Primero selecciona y conecta un usuario');
+                return;
+            }
+
+            const roomIdInput = document.getElementById('room-id-input');
+            const roomId = roomIdInput.value.trim();
+
+            if (!roomId) {
+                alert('Por favor ingresa el ID de la sala');
+                return;
+            }
+
+            try {
+                console.log('🔄 Uniéndose a sala:', roomId);
+                const response = await fetch(`${CHAT_API}/rooms/join`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentUser.token}`
+                    },
+                    body: JSON.stringify({
+                        roomId: roomId,
+                        isAdmin: false
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    throw new Error(`Error ${response.status}: ${errorText}`);
+                }
+
+                const result = await response.json();
+                console.log('✅ Se unió a la sala:', result);
+                
+                currentRoom = roomId;
+                updateRoomInfo(roomId, 'Sala Unida');
+                
+                alert(`✅ Te has unido a la sala exitosamente!`);
+
+                // Configurar tiempo real
+                setupRealtime();
+
+                // Cargar mensajes existentes
+                await loadExistingMessages();
+
+            } catch (error) {
+                console.error('❌ Error uniéndose a sala:', error);
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        // Configurar tiempo real
+        async function setupRealtime() {
+            if (!currentRoom || !currentUser.supabase) return;
+
+            try {
+                // Limpiar canal anterior si existe
+                if (channel) {
+                    await channel.unsubscribe();
+                    channel = null;
+                }
+
+                console.log(`🔄 Configurando tiempo real...`);
+
+                channel = currentUser.supabase
+                    .channel(`room:${currentRoom}`)
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: 'INSERT',
+                            schema: 'public',
+                            table: 'chat_messages',
+                            filter: `room_id=eq.${currentRoom}`
+                        },
+                        (payload) => {
+                            console.log(`Nuevo mensaje:`, payload.new);
+                            displayMessage(payload.new);
+                        }
+                    )
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: 'UPDATE',
+                            schema: 'public',
+                            table: 'chat_messages',
+                            filter: `room_id=eq.${currentRoom}`
+                        },
+                        (payload) => {
+                            console.log(`Mensaje actualizado:`, payload.new);
+                            displayMessage(payload.new, true);
+                        }
+                    )
+                    .subscribe((status) => {
+                        console.log(`Canal - Estado:`, status);
+                        if (status === 'SUBSCRIBED') {
+                            updateStatus('connected', `✅ Tiempo real activo`);
+                            console.log(`✅ Suscrito al tiempo real`);
+                        } else if (status === 'CHANNEL_ERROR') {
+                            updateStatus('disconnected', `❌ Error en tiempo real`);
+                            console.error(`❌ Error en canal`);
+                        }
+                        updateDebugInfo();
+                    });
+
+                // Configurar presencia
+                const presenceChannel = currentUser.supabase
+                    .channel(`presence:${currentRoom}`)
+                    .on('presence', { event: 'sync' }, () => {
+                        const state = presenceChannel.presenceState();
+                        const onlineUsers = Object.keys(state);
+                        console.log(`Usuarios en línea:`, onlineUsers);
+                        updateOnlineUsers(onlineUsers);
+                    })
+                    .on('presence', { event: 'join' }, ({ key }) => {
+                        console.log(`Usuario conectado: ${key}`);
+                    })
+                    .on('presence', { event: 'leave' }, ({ key }) => {
+                        console.log(`Usuario desconectado: ${key}`);
+                    })
+                    .subscribe(async (status) => {
+                        if (status === 'SUBSCRIBED') {
+                            await presenceChannel.track({
+                                user_id: currentUser.userId,
+                                user_name: currentUser.name,
+                                online_at: new Date().toISOString(),
+                            });
+                            console.log(`✅ Presente en la sala`);
+                        }
+                    });
+
+            } catch (error) {
+                console.error(`Error configurando tiempo real:`, error);
+                updateStatus('disconnected', `❌ Error: ${error.message}`);
+            }
+        }
+
+        // Cargar mensajes existentes de la sala
+        async function loadExistingMessages() {
+            if (!currentRoom || !currentUser.token) return;
+
+            try {
+                console.log(`🔄 Cargando mensajes existentes...`);
+                const response = await fetch(`${CHAT_API}/rooms/${currentRoom}/messages?limit=50`, {
+                    headers: {
+                        'Authorization': `Bearer ${currentUser.token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    console.warn(`No se pudieron cargar mensajes existentes`);
+                    return;
+                }
+
+                const data = await response.json();
+                const messages = data.messages || data || [];
+                
+                console.log(`✅ Cargados ${messages.length} mensajes`);
+                
+                // Mostrar mensajes en orden cronológico
+                messages.forEach(message => {
+                    displayMessage(message);
+                });
+
+            } catch (error) {
+                console.error(`Error cargando mensajes:`, error);
+            }
+        }
+
+        // Enviar mensaje
+        async function sendMessage() {
+            if (!currentRoom || !currentUser.token) {
+                alert(`Primero selecciona un usuario y únete a una sala`);
+                return;
+            }
+
+            const input = document.getElementById('message-input');
+            const content = input.value.trim();
+
+            if (!content) return;
+
+            try {
+                console.log(`🔄 Enviando mensaje:`, content);
+                const response = await fetch(`${CHAT_API}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentUser.token}`
+                    },
+                    body: JSON.stringify({
+                        content: content,
+                        roomId: currentRoom,
+                        messageType: 'text'
+                    })
+                });
+
+                console.log(`Response status:`, response.status);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`Error response:`, errorText);
+                    throw new Error(`Error ${response.status}: ${errorText}`);
+                }
+
+                const result = await response.json();
+                console.log(`✅ Mensaje enviado:`, result);
+                input.value = '';
+
+            } catch (error) {
+                console.error(`❌ Error enviando mensaje:`, error);
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        // Mostrar mensaje en UI
+        function displayMessage(message, isUpdate = false) {
+            const messagesDiv = document.getElementById('messages');
+
+            // Verificar que el mensaje tiene las propiedades necesarias
+            if (!message || !message.id) {
+                console.warn(`Mensaje inválido:`, message);
+                return;
+            }
+
+            // Si es actualización, buscar y reemplazar
+            if (isUpdate) {
+                const existingMessage = messagesDiv.querySelector(`[data-message-id="${message.id}"]`);
+                if (existingMessage) {
+                    existingMessage.remove();
+                }
+            }
+
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message';
+            messageElement.setAttribute('data-message-id', message.id);
+
+            // Determinar si es mensaje propio
+            if (message.sender_id === currentUser.userId) {
+                messageElement.classList.add('own');
+            }
+
+            // Determinar si es mensaje del sistema
+            if (message.message_type === 'system') {
+                messageElement.classList.add('system');
+            }
+
+            const timestamp = new Date(message.created_at).toLocaleTimeString();
+            const senderName = message.sender_id === currentUser.userId ?
+                currentUser.name :
+                (message.sender_id ? 'Otro Usuario' : 'Sistema');
+
+            messageElement.innerHTML = `
+                <div class="message-header">
+                    <strong>${senderName}</strong> - ${timestamp}
+                    ${message.is_edited ? ' (editado)' : ''}
+                </div>
+                <div>${message.content}</div>
+            `;
+
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            console.log(`💬 Mensaje mostrado:`, {
+                id: message.id,
+                content: message.content,
+                sender: senderName,
+                timestamp: timestamp
+            });
+        }
+
+        // Actualizar estado de conexión
+        function updateStatus(status, message) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${status}`;
+            statusDiv.textContent = message;
+        }
+
+        // Actualizar usuarios en línea
+        function updateOnlineUsers(onlineUsers) {
+            const onlineDiv = document.getElementById('online');
+            onlineDiv.textContent = `${onlineUsers.length} usuario(s)`;
+        }
+
+        // Actualizar información de sala
+        function updateRoomInfo(roomId, roomName) {
+            const roomDiv = document.getElementById('current-room');
+            roomDiv.textContent = `${roomName} (${roomId})`;
+        }
+
+        // Actualizar debug info
+        function updateDebugInfo() {
+            document.getElementById('debug-user').textContent = currentUser.name || '-';
+            document.getElementById('debug-room').textContent = currentRoom || '-';
+            document.getElementById('debug-status').textContent = channel ? 'Conectado' : 'Desconectado';
+        }
+
+        // Manejar Enter en input
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Desconectar
+        function disconnect() {
+            if (channel) {
+                channel.unsubscribe();
+                channel = null;
+            }
+            
+            currentUser = {
+                supabase: null,
+                token: null,
+                userId: null,
+                email: null,
+                name: null
+            };
+            currentRoom = null;
+            
+            // Resetear UI
+            document.getElementById('user-title').textContent = '👤 Selecciona un usuario';
+            document.getElementById('room-controls').style.display = 'none';
+            document.getElementById('message-input').disabled = true;
+            document.getElementById('send-btn').disabled = true;
+            document.getElementById('message-input').placeholder = 'Selecciona un usuario primero...';
+            updateStatus('disconnected', 'Desconectado');
+            updateDebugInfo();
+            clearMessages();
+            
+            console.log('🚪 Desconectado');
+        }
+
+        // Limpiar mensajes
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+            console.log('🗑️ Mensajes limpiados');
+        }
+
+        // Limpiar conexiones al salir
+        window.addEventListener('beforeunload', () => {
+            if (channel) {
+                channel.unsubscribe();
+            }
+        });
+
+        // Instrucciones iniciales
+        console.log(`
+🔥 TEST CHAT TIEMPO REAL - MULTI-NAVEGADOR
+
+📱 INSTRUCCIONES PARA PRUEBA EN DIFERENTES NAVEGADORES:
+
+1. Abre este archivo HTML en DOS navegadores diferentes
+2. En el PRIMER navegador: Haz clic en "Soy Rodrigo Salvador"
+3. En el SEGUNDO navegador: Haz clic en "Soy Rodrigo Lopez"
+4. En cualquiera de los dos: Haz clic en "Crear Nueva Sala"
+5. COPIA el ID de la sala que aparece en el alert
+6. En el OTRO navegador: Pega el ID en el campo y haz clic en "Unirse a Sala Existente"
+7. ¡Ahora pueden escribirse mensajes en tiempo real entre navegadores!
+
+🔧 CONFIGURACIÓN ACTUAL:
+- Chat API: ${CHAT_API}
+- Supabase URL: ${SUPABASE_URL}
+        `);
+
+        // Verificar conexión al chat service
+        fetch(`${CHAT_API}`)
+            .then(response => response.text())
+            .then(text => {
+                console.log('✅ Chat Service está disponible:', text);
+            })
+            .catch(error => {
+                console.error('❌ Chat Service NO está disponible:', error);
+                alert('⚠️ IMPORTANTE: El Chat Service no está disponible en http://localhost:3003\n\nPor favor ejecuta: npm run start:dev:chat');
+            });
+    </script>
+</body>
+
+</html>
