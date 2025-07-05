@@ -2,7 +2,7 @@ import { Controller, Get, UseGuards, Param, Put, Body } from '@nestjs/common';
 import { UserServiceService } from './user-service.service';
 import { AuthGuard, GetUser, Roles, RolesGuard, Public } from '@app/shared';
 
-@Controller('users')
+@Controller()
 export class UserServiceController {
   constructor(private readonly userServiceService: UserServiceService) {}
 
@@ -10,6 +10,18 @@ export class UserServiceController {
   @Get()
   getHello(): string {
     return this.userServiceService.getHello();
+  }
+
+  @Public()
+  @Get('health')
+  getHealth() {
+    return {
+      status: 'ok',
+      service: 'user-service',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: '1.0.0',
+    };
   }
 
   @Get('profile')
