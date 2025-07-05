@@ -31,7 +31,7 @@ import {
 } from './dto/chat.dto';
 
 @ApiTags('chat')
-@Controller('chat')
+@Controller()
 export class ChatServiceController {
   constructor(private readonly chatServiceService: ChatServiceService) {}
 
@@ -40,6 +40,19 @@ export class ChatServiceController {
   @ApiExcludeEndpoint()
   getHello(): string {
     return this.chatServiceService.getHello();
+  }
+
+  @Public()
+  @Get('health')
+  @ApiExcludeEndpoint()
+  getHealth() {
+    return {
+      status: 'ok',
+      service: 'chat-service',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: '1.0.0'
+    };
   }
 
   // ===== SALAS DE CHAT =====
