@@ -2,6 +2,8 @@
 import '@app/shared/config/env-loader';
 
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ValidationPipe } from '@nestjs/common';
 import { ChatServiceModule } from './chat-service.module';
 
 async function bootstrap() {
@@ -22,16 +24,53 @@ async function bootstrap() {
 
   const app = await NestFactory.create(ChatServiceModule);
   
+  // Configurar validación global
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true,
+    whitelist: true,
+    forbidNonWhitelisted: true,
+  }));
+  
   // Configurar CORS
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    credentials: true,
+    origin: '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  });
+
+  // Configurar Swagger
+  const config = new DocumentBuilder()
+    .setTitle('Chat Service API')
+    .setDescription('API para el servicio de chat en tiempo real de TutorMatch')
+    .setVersion('1.0')
+    .addTag('chat', 'Operaciones relacionadas con el chat')
+    .addTag('rooms', 'Gestión de salas de chat')
+    .addTag('messages', 'Gestión de mensajes')
+    .addTag('realtime', 'Funcionalidades en tiempo real')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Token JWT para autenticación',
+        in: 'header',
+      },
+      'JWT-auth',
+    )
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
   });
 
   const port = process.env.CHAT_SERVICE_PORT || 3003;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
-  const baseUrl = await app.getUrl();
+  const baseUrl = `http://localhost:${port}`;
   console.log(`💬 Chat Service is running at ${baseUrl}`);
+  console.log(`📚 Swagger documentation available at ${baseUrl}/api/docs`);
 }
 bootstrap();
