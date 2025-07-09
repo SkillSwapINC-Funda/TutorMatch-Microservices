@@ -2,7 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { ClassroomServiceService } from './classroom-service.service';
 import { Public } from '@app/shared';
 
-@Controller()
+@Controller('api/classroom')
 export class ClassroomServiceController {
   constructor(private readonly classroomServiceService: ClassroomServiceService) {}
 

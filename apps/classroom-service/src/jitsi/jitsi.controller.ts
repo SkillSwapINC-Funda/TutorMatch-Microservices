@@ -28,7 +28,7 @@ import {
 } from './dto/jitsi.dto';
 
 @ApiTags('video-calls')
-@Controller('video-calls')
+@Controller('api/classroom/video-calls')
 @UseGuards(AuthGuard)
 @ApiBearerAuth('JWT-auth')
 export class JitsiController {

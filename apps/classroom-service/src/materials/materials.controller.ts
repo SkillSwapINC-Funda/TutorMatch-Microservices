@@ -28,7 +28,7 @@ import { AuthGuard, GetUser } from '@app/shared';
 import { UploadMaterialDto, UpdateMaterialDto, GetMaterialsDto } from './dto/materials.dto';
 
 @ApiTags('materials')
-@Controller('materials')
+@Controller('api/classroom/materials')
 @UseGuards(AuthGuard)
 @ApiBearerAuth('JWT-auth')
 export class MaterialsController {
