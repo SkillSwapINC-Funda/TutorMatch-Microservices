@@ -17,31 +17,36 @@ export class ProxyService {
       const proxyOptions: Options = {
         target: service.url,
         changeOrigin: true,
-        pathRewrite: {
-          [`^${service.prefix}`]: '', // Remueve el prefijo antes de enviar al microservicio
-        },
+        timeout: 10000,
+        proxyTimeout: 10000,
         on: {
           error: (err, req, res) => {
             this.logger.error(`Proxy error for ${service.name}:`, err.message);
-            // El error se maneja automáticamente por el proxy middleware
           },
           proxyReq: (proxyReq, req, res) => {
             this.logger.debug(`Proxying request to ${service.name}: ${req.method} ${req.url} -> ${proxyReq.path}`);
-            
+
             // Preservar headers importantes
             if (req.headers.authorization) {
               proxyReq.setHeader('authorization', req.headers.authorization);
             }
-            
-            // Preservar content-type para uploads
             if (req.headers['content-type']) {
               proxyReq.setHeader('content-type', req.headers['content-type']);
+            }
+
+            const expressReq = req as Request;
+            if (
+              expressReq.body &&
+              typeof expressReq.body === 'object' &&
+              ['POST', 'PUT', 'PATCH'].includes((req.method || '').toUpperCase())
+            ) {
+              const bodyData = JSON.stringify(expressReq.body);
+              proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+              proxyReq.write(bodyData);
             }
           },
           proxyRes: (proxyRes, req, res) => {
             this.logger.debug(`Response from ${service.name}: ${proxyRes.statusCode}`);
-            
-            // Permitir CORS
             proxyRes.headers['Access-Control-Allow-Origin'] = '*';
             proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS';
             proxyRes.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Authorization';
@@ -51,29 +56,28 @@ export class ProxyService {
 
       const middleware = createProxyMiddleware(proxyOptions);
       this.proxyMiddlewares.set(service.prefix, middleware);
-      
+
       this.logger.log(`Initialized proxy for ${service.name}: ${service.prefix} -> ${service.url}`);
     });
   }
 
   async proxyRequest(req: Request, res: Response, next: NextFunction): Promise<void> {
     const service = getServiceForPath(req.path);
-    
+
     if (!service) {
       this.logger.warn(`No service found for path: ${req.path}`);
       return next();
     }
 
     const middleware = this.proxyMiddlewares.get(service.prefix);
-    
+
     if (!middleware) {
       this.logger.error(`No proxy middleware found for service: ${service.name}`);
       throw new BadGatewayException(`Service ${service.name} not available`);
     }
 
     this.logger.debug(`Routing request to ${service.name}: ${req.method} ${req.path}`);
-    
-    // Ejecutar el middleware de proxy
+
     middleware(req, res, next);
   }
 
@@ -82,29 +86,29 @@ export class ProxyService {
       name: service.name,
       prefix: service.prefix,
       description: service.description,
-      status: 'configured' // TODO: Implementar health checks
+      status: 'configured'
     }));
   }
 
   async healthCheck(): Promise<{ [key: string]: string }> {
     const results: { [key: string]: string } = {};
-    
+
     for (const service of MICROSERVICES_CONFIG) {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
-        
+
         const response = await fetch(`${service.url}${service.healthEndpoint}`, {
           signal: controller.signal
         });
-        
+
         clearTimeout(timeoutId);
         results[service.name] = response.ok ? 'healthy' : 'unhealthy';
       } catch (error) {
         results[service.name] = 'unhealthy';
       }
     }
-    
+
     return results;
   }
 }

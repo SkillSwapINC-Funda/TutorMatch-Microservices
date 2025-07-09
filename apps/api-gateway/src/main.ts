@@ -6,29 +6,25 @@ import { EnvironmentValidationService } from '@app/shared';
 import { config } from 'dotenv';
 import { resolve } from 'path';
 
-// Cargar variables de entorno desde la raíz del monorepo
+
 config({ path: resolve(__dirname, '../../../.env') });
 
 async function bootstrap() {
-  // Validar variables de entorno antes de iniciar la aplicación
   const envValidator = new EnvironmentValidationService();
   const envValidation = envValidator.validateEnvironment();
-  
   if (!envValidation.isValid) {
     process.exit(1);
   }
+  const configObj = envValidator.getConfig();
 
-  const config = envValidator.getConfig();
-  
+
   const app = await NestFactory.create(ApiGatewayModule);
-  
-  // Configurar CORS más permisivo para desarrollo
+
   app.enableCors({
     origin: '*',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
   });
 
-  // Configurar validación global
   app.useGlobalPipes(new ValidationPipe({
     transform: true,
     whitelist: true,
@@ -38,13 +34,11 @@ async function bootstrap() {
     },
   }));
 
-  // Configurar Swagger
   const swaggerConfig = new DocumentBuilder()
     .setTitle('TutorMatch API Gateway')
     .setDescription('API Gateway para microservicios de TutorMatch')
     .setVersion('1.0')
     .addBearerAuth()
-    .addServer('http://localhost:3000', 'Development')
     .addTag('Gateway', 'Status y health checks del gateway')
     .addTag('Proxy', 'Enrutamiento a microservicios')
     .addTag('Auth', 'Autenticación centralizada')
@@ -52,11 +46,8 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('swagger-ui', app, document);
+  await app.listen(configObj.ports.apiGateway);
 
-  // No configurar prefijo global para permitir que el proxy maneje todas las rutas
-  // app.setGlobalPrefix('api/v1');
-
-  await app.listen(config.ports.apiGateway);
 
   const baseUrl = await app.getUrl();
   console.log(`🌐 API Gateway is running at ${baseUrl}`);

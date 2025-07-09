@@ -199,22 +199,48 @@
     <div class="controls">
         <h3>🔧 Selecciona tu Usuario</h3>
         <div style="margin-bottom: 15px;">
-            <button onclick="selectUser('u202213646@upc.edu.pe', 'Rodrigo Salvador')" id="user1-btn">👤 Soy Rodrigo Salvador</button>
-            <button onclick="selectUser('u202212338@upc.edu.pe', 'Rodrigo Lopez')" id="user2-btn">👤 Soy Rodrigo Lopez</button>
+            <button onclick="selectUser('u202213646@upc.edu.pe', 'Rodrigo Salvador')" id="user1-btn">👤 Soy Rodrigo
+                Salvador</button>
+            <button onclick="selectUser('u202212338@upc.edu.pe', 'Rodrigo Lopez')" id="user2-btn">👤 Soy Rodrigo
+                Lopez</button>
         </div>
-        
+
         <div id="room-controls" style="display: none;">
             <h3>🏠 Control de Sala</h3>
-            <input type="text" id="room-id-input" placeholder="ID de la sala (opcional)" style="margin: 5px; padding: 8px; width: 200px;">
+            <input type="text" id="room-id-input" placeholder="ID de la sala (opcional)"
+                style="margin: 5px; padding: 8px; width: 200px;">
             <br>
             <button onclick="createRoom()">🏠 Crear Nueva Sala</button>
             <button onclick="joinExistingRoom()">➕ Unirse a Sala Existente</button>
         </div>
-        
+
         <div style="margin-top: 15px;">
             <button onclick="clearMessages()">🗑️ Limpiar Mensajes</button>
             <button onclick="disconnect()">🚪 Desconectar</button>
+            <button onclick="logout()" id="logout-btn" style="background: #dc3545; margin-left: 10px;">🔒
+                Logout</button>
         </div>
+        <!-- Logout: cerrar sesión de Supabase, limpiar localStorage y resetear UI -->
+        <script>
+            async function logout() {
+                try {
+                    if (currentUser.supabase) {
+                        await currentUser.supabase.auth.signOut();
+                    }
+                } catch (e) {
+                    console.warn('Error cerrando sesión Supabase:', e);
+                }
+                // Limpiar localStorage (solo lo relacionado a Supabase)
+                for (let i = localStorage.length - 1; i >= 0; i--) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('sb-')) {
+                        localStorage.removeItem(key);
+                    }
+                }
+                disconnect();
+                alert('🔒 Sesión cerrada y datos limpiados.');
+            }
+        </script>
     </div>
 
     <div class="container">
@@ -256,12 +282,14 @@
                     <li>En el segundo navegador: Haz clic en "Unirse a Sala Existente"</li>
                     <li>¡Ahora pueden escribirse mensajes en tiempo real!</li>
                 </ol>
-                
+
                 <div style="background: #fff3cd; padding: 10px; border-radius: 4px; margin-top: 15px;">
-                    <strong>💡 Tip:</strong> Los mensajes aparecerán instantáneamente en ambos navegadores gracias a Supabase Realtime.
+                    <strong>💡 Tip:</strong> Los mensajes aparecerán instantáneamente en ambos navegadores gracias a
+                    Supabase Realtime.
                 </div>
 
-                <div id="debug-info" style="background: #d4edda; padding: 10px; border-radius: 4px; margin-top: 15px; font-family: monospace; font-size: 12px;">
+                <div id="debug-info"
+                    style="background: #d4edda; padding: 10px; border-radius: 4px; margin-top: 15px; font-family: monospace; font-size: 12px;">
                     <strong>🔧 Debug Info:</strong><br>
                     Usuario: <span id="debug-user">-</span><br>
                     Sala: <span id="debug-room">-</span><br>
@@ -275,8 +303,8 @@
         // Configuración
         const SUPABASE_URL = 'https://xdqnuesrahrusfnxcwvm.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkcW51ZXNyYWhydXNmbnhjd3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ1OTk3NjAsImV4cCI6MjA2MDE3NTc2MH0.g9-gdoeMUw60904DqQRqI2VI97MPVmAkvwCuoAH7ToA';
-        const CHAT_API = 'http://localhost:3003/chat';
-
+        //const CHAT_API = 'http://localhost:3003/api/chat';
+        const CHAT_API = 'http://localhost:3000/api/chat';
         // Estado global
         let currentUser = {
             supabase: null,
@@ -291,14 +319,14 @@
         // Seleccionar usuario
         async function selectUser(email, name) {
             console.log(`🔄 Seleccionando usuario: ${name} (${email})`);
-            
+
             currentUser.email = email;
             currentUser.name = name;
-            
+
             // Actualizar UI
             document.getElementById('user-title').textContent = `👤 ${name}`;
             document.getElementById('debug-user').textContent = `${name} (${email})`;
-            
+
             // Autenticar
             await authenticate(email, name);
         }
@@ -352,10 +380,10 @@
 
                 updateStatus('connected', `✅ ${name} conectado`);
                 updateDebugInfo();
-                
+
                 // Mostrar controles de sala
                 document.getElementById('room-controls').style.display = 'block';
-                
+
                 // Habilitar input de mensajes
                 const messageInput = document.getElementById('message-input');
                 const sendBtn = document.getElementById('send-btn');
@@ -396,7 +424,7 @@
                 });
 
                 console.log('Response status:', response.status);
-                
+
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('Error response:', errorText);
@@ -407,10 +435,10 @@
                 currentRoom = room.id;
 
                 console.log('✅ Sala creada exitosamente:', room);
-                
+
                 // Actualizar UI
                 updateRoomInfo(room.id, room.name);
-                
+
                 alert(`🏠 Sala creada exitosamente!\n\nID: ${room.id}\nNombre: ${room.name}\n\n📋 Comparte este ID con la otra persona para que se una a la sala.`);
 
                 // Configurar tiempo real
@@ -462,10 +490,10 @@
 
                 const result = await response.json();
                 console.log('✅ Se unió a la sala:', result);
-                
+
                 currentRoom = roomId;
                 updateRoomInfo(roomId, 'Sala Unida');
-                
+
                 alert(`✅ Te has unido a la sala exitosamente!`);
 
                 // Configurar tiempo real
@@ -584,9 +612,9 @@
 
                 const data = await response.json();
                 const messages = data.messages || data || [];
-                
+
                 console.log(`✅ Cargados ${messages.length} mensajes`);
-                
+
                 // Mostrar mensajes en orden cronológico
                 messages.forEach(message => {
                     displayMessage(message);
@@ -737,7 +765,7 @@
                 channel.unsubscribe();
                 channel = null;
             }
-            
+
             currentUser = {
                 supabase: null,
                 token: null,
@@ -746,7 +774,7 @@
                 name: null
             };
             currentRoom = null;
-            
+
             // Resetear UI
             document.getElementById('user-title').textContent = '👤 Selecciona un usuario';
             document.getElementById('room-controls').style.display = 'none';
@@ -756,7 +784,7 @@
             updateStatus('disconnected', 'Desconectado');
             updateDebugInfo();
             clearMessages();
-            
+
             console.log('🚪 Desconectado');
         }
 
@@ -792,7 +820,7 @@
 - Supabase URL: ${SUPABASE_URL}
         `);
 
-        // Verificar conexión al chat service
+        // Cambia esto solo para testear disponibilidad sin autenticación
         fetch(`${CHAT_API}`)
             .then(response => response.text())
             .then(text => {
@@ -800,7 +828,7 @@
             })
             .catch(error => {
                 console.error('❌ Chat Service NO está disponible:', error);
-                alert('⚠️ IMPORTANTE: El Chat Service no está disponible en http://localhost:3003\n\nPor favor ejecuta: npm run start:dev:chat');
+                alert('⚠️ IMPORTANTE: El Chat Service no está disponible en ${CHAT_API}\n\nPor favor ejecuta: npm run start:dev:all');
             });
     </script>
 </body>

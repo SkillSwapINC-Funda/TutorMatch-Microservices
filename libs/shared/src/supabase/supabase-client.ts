@@ -59,11 +59,7 @@ export function createSupabaseClient(options?: {
   customConfig?: any;
 }): SupabaseClient<Database> {
   const { useServiceRole = false, customConfig = {} } = options || {};
-  
-  console.log('🔧 Creando cliente Supabase personalizado...');
-  console.log('Use Service Role:', useServiceRole);
-  console.log('URL:', supabaseConfig.url || 'UNDEFINED');
-  
+
   if (!supabaseConfig.url) {
     throw new Error('SUPABASE_URL no está configurada');
   }
