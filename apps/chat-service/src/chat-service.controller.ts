@@ -31,7 +31,7 @@ import {
 } from './dto/chat.dto';
 
 @ApiTags('chat')
-@Controller()
+@Controller('api/chat')
 export class ChatServiceController {
   constructor(private readonly chatServiceService: ChatServiceService) {}
 
